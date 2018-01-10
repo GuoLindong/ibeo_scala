@@ -154,7 +154,8 @@ int main(int argc, char **argv)
     logFileManager.start();
 
     AllScalaListener allScalaListener;
-    ibeosdk::IbeoScala scala(device_ip, port, ibeosdk::IbeoTypeEthTcp());
+    ibeosdk::IbeoScala scala(device_ip, port, ibeosdk::IbeoTypeEthTcp()); //B2
+    //ibeosdk::IbeoScala scala(device_ip, port, ibeosdk::IbeoTypeEthUdp()); //B3
     scala.setLogFileManager(&logFileManager);
     scala.registerListener(&allScalaListener);
 
