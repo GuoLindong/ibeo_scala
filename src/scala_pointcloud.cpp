@@ -68,7 +68,7 @@ public:
         for(int i = 0; i < sub_scan_size; ++i)
         {
             scanpoint = subscan[i].getScanPoints();
-            std::cout << "pointsize: " << scanpoint.size() << std::endl;
+            //std::cout << "pointsize: " << scanpoint.size() << std::endl;
             int scan_point_size = scanpoint.size();
             for(int j = 0; j < scanpoint.size(); ++j)
             {
@@ -78,7 +78,6 @@ public:
                 {
                     dis = scanpoint[j].getRadialDistance()/100.0;   // 米
                     angle = 90 - (scanpoint[j].getHorizontalAngle()/32.0);  //
-                    if(j%100==0) std::cout << dis << " ";
                 }
 
             }
