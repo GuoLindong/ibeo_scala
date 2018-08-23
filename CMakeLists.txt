@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(ibeo_scala_node)
+project(ibeo_scala)
 
 find_package(catkin REQUIRED COMPONENTS
   message_generation
@@ -8,7 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
 )
-find_package(PCL REQUIRED)
+find_package(PCL 1.7 REQUIRED)
 
 ## Generate messages in the 'msg' folder
 add_message_files(
@@ -32,7 +32,7 @@ catkin_package(
 )
 
 include_directories(
-# include
+		${PCL_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   /home/guolindong/CyberC3/IbeoSDK5.2.2/src
 )
@@ -41,17 +41,11 @@ include_directories(
 add_library(ibeosdk_d SHARED IMPORTED)
 set_target_properties(ibeosdk_d PROPERTIES IMPORTED_LOCATION /home/guolindong/CyberC3/IbeoSDK5.2.2/libs/libibeosdk_d.so)
 
-add_executable(scala_pointcloud
+add_executable(scala_node
         src/scala_pointcloud.cpp
 )
 
-#link_directories(
-#        ${catkin_LIB_DIRS}
-#        /home/guolindong/CyberC3/IbeoSDK5.2.2/libs/
-#)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(scala_pointcloud
+target_link_libraries(scala_node
         ibeosdk_d
         ${catkin_LIBRARIES}
         ${PCL_LIBRARIES}

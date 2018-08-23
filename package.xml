@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>ibeo_scala_node</name>
+  <name>ibeo_scala</name>
   <version>0.0.0</version>
-  <description>The ibeo_scala_node package</description>
+  <description>The ibeo_scala package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
