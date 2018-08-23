@@ -58,6 +58,8 @@ public:
     ibeo_scala::Point2D contour_points;
     ibeo_scala::ObjectArray object_array;
 
+    float min_distance;
+
     AllScalaListener()
     {
         pub_scala_points = nh.advertise<sensor_msgs::PointCloud2>("scala_points", 5);
@@ -67,6 +69,11 @@ public:
     virtual ~AllScalaListener(){}
 
 public:
+    void setMinDistance(float min)
+    {
+        min_distance = min;
+    }
+
     void onData(const ibeosdk::FrameEndSeparator* const fes)
     {
         //ibeosdk::logInfo << std::setw(5) << fes->getSerializedSize() << " Bytes "
@@ -80,41 +87,40 @@ public:
         float dis,angle;
         int flags;
 
-        pcl::PointCloud<pcl::PointXYZI> scala_cloud;
+        pcl::PointCloud<pcl::PointXYZI>::Ptr scala_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+        scala_cloud->is_dense = false;
 
         for(int i = 0; i < subscan.size(); ++i)
         {
             scanpoint = subscan[i].getScanPoints();
             int scan_point_size = scanpoint.size();
-
-            scala_cloud.is_dense = false;
-            scala_cloud.width = scan_point_size;
-            scala_cloud.height = 1;
-            scala_cloud.resize(scala_cloud.height * scala_cloud.width);
+            //printf("points num: %i\n", scan_point_size);
 
             for(int j = 0; j < scan_point_size; ++j)
             {
-//                pcl::PointXYZI point;
+                pcl::PointXYZI point;
                 ibeosdk::ScanPoint2208 scala_point = scanpoint[j];
                 flags = scala_point.getFlags();
-                if(!(flags/* & (ibeosdk::ScanPoint2208::SPFML_Ground | ibeosdk::ScanPoint2208::SPFML_Dirt | ibeosdk::ScanPoint2208::SPFML_Rain)*/))
-                //if(!(flags & (ibeosdk::ScanPoint2208::SPFML_Ground | ibeosdk::ScanPoint2208::SPFML_Dirt | ibeosdk::ScanPoint2208::SPFML_Rain)))
+                if(!(flags & (ibeosdk::ScanPoint2208::SPFML_Ground | ibeosdk::ScanPoint2208::SPFML_Dirt | ibeosdk::ScanPoint2208::SPFML_Rain)))
                 {
                     dis = scala_point.getRadialDistance()/100.0;   // 米
+                    if (dis<min_distance)
+                        continue;
                     angle = -90 + (scala_point.getHorizontalAngle()/32.0);  //
                     //layer to phi
                     int layer = scala_point.getLayerId();//0123
                     double phi = layer * 0.8 - 1.2;
-                    scala_cloud.points[j].intensity = scala_point.getEchoPulseWidth();
-                    scala_cloud.points[j].z = dis * (sin(DEG2RAD(phi)));
-                    scala_cloud.points[j].x = dis * (cos(DEG2RAD(phi))) * (cos(DEG2RAD(angle)));
-                    scala_cloud.points[j].y = dis * (cos(DEG2RAD(phi))) * (sin(DEG2RAD(angle)));
+                    point.intensity = scala_point.getEchoPulseWidth();
+                    point.z = dis * (sin(DEG2RAD(phi)));
+                    point.x = dis * (cos(DEG2RAD(phi))) * (cos(DEG2RAD(angle)));
+                    point.y = dis * (cos(DEG2RAD(phi))) * (sin(DEG2RAD(angle)));
+                    scala_cloud->push_back(point);
                 }
             }
         }
 
         sensor_msgs::PointCloud2 cloud_to_pub;
-        pcl::toROSMsg(scala_cloud, cloud_to_pub);//pcl::toROSMsg() should be done before setting frame_id
+        pcl::toROSMsg(*scala_cloud, cloud_to_pub);//pcl::toROSMsg() should be done before setting frame_id
         cloud_to_pub.header.frame_id = "scala";
         cloud_to_pub.header.stamp = ros::Time::now();
 
@@ -125,7 +131,7 @@ public:
     {
         std::vector<ibeosdk::ObjectScala2271> object_points = objectList->getObjects();
         object_array.objects.clear();
-        std::cout << "object num: " << object_points.size() << std::endl;
+        //printf("objects num: %i\n", (int)object_points.size());
 
         for(int i =0; i<object_points.size();++i)
         {
@@ -172,6 +178,7 @@ int main(int argc, char **argv)
     std::string log_level;
     std::string multicast_interface_ip;
     bool use_multicast;
+    float min_distance;
 
     pnh.param<int>("scala_type", scala_type, 3);
     pnh.param<std::string>("device_destination_ip", device_destination_ip, "224.100.100.100");
@@ -180,6 +187,7 @@ int main(int argc, char **argv)
     pnh.param<std::string>("multicast_interface_ip", multicast_interface_ip, "224.0.0.1");
     pnh.param<std::string>("log_level", log_level, "Quiet");
     pnh.param<bool>("use_multicast", use_multicast, true);
+    pnh.param<float>("min_distance", min_distance, 0.5);
 
     std::cerr << argv[0] << " Version " << appVersion.toString();
     std::cerr << " using IbeoSDK " << ibeoSDK.getVersion().toString() << std::endl;
@@ -230,21 +238,19 @@ int main(int argc, char **argv)
     }
 
     AllScalaListener allScalaListener;
+    allScalaListener.setMinDistance(min_distance);
     scala->setLogFileManager(&logFileManager);
     scala->registerListener(&allScalaListener);
     scala->getConnected();
 
-    ros::Rate loop_rate(25);     //25Hz
-    while(ros::ok())
+    if(!scala->isConnected())
     {
-        if(!scala->isConnected())
-        {
-            printf("!scala.isConnected\n");
-            return -1;
-        }
-        ros::spinOnce();
-        loop_rate.sleep();
+        printf("!scala.isConnected\n");
+        return -1;
     }
+
+    ros::spin();
+    ros::waitForShutdown();
     return 0;
 }
 
