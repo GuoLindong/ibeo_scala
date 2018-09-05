@@ -1,4 +1,4 @@
-![Screenshot](/scala.bmp)
+![Screenshot](/scala.png)
 # ibeo scala lidar ros driver node
 
 ## Build
