@@ -1,8 +1,10 @@
 int32 id
 int32 age
 int32 classification
-
-Point2D velocity
+Point2D velocity_relative
+Point2D velocity_absolute
 Point2D object_closest
 Point2D object_box_size
+float32 object_box_height
+float32 object_box_orientation
 Point2D[] contour

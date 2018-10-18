@@ -129,26 +129,29 @@ public:
 
     void onData(const ibeosdk::ObjectListScala2271* const objectList)
     {
-        std::vector<ibeosdk::ObjectScala2271> object_points = objectList->getObjects();
+        std::vector<ibeosdk::ObjectScala2271> object_list = objectList->getObjects();
         object_array.objects.clear();
-        //printf("objects num: %i\n", (int)object_points.size());
-
-        for(int i =0; i<object_points.size();++i)
+        int object_list_size = object_list.size();
+        for(int i =0; i<object_list_size; ++i)
         {
-            object.id = object_points[i].getObjectId();
-            object.age = object_points[i].getFilteredObjectAttributes().getObjectAge();
-            object.classification = object_points[i].getFilteredObjectAttributes().getClassification();
-            object.velocity.x = object_points[i].getFilteredObjectAttributes().getRelativeVelocitySigma().getX()/100.0;
-            object.velocity.y = object_points[i].getFilteredObjectAttributes().getRelativeVelocitySigma().getX()/100.0;
-            object.object_closest.x = object_points[i].getFilteredObjectAttributes().getPositionClosestObjectPoint().getX()/100.0;
-            object.object_closest.y = object_points[i].getFilteredObjectAttributes().getPositionClosestObjectPoint().getY()/100.0;
-            object.object_box_size.x = object_points[i].getFilteredObjectAttributes().getObjectBoxSizeSigma().getX()/100.0;
-            object.object_box_size.y = object_points[i].getFilteredObjectAttributes().getObjectBoxSizeSigma().getY()/100.0;
+            object.id = object_list[i].getObjectId();
+            object.age = object_list[i].getFilteredObjectAttributes().getObjectAge();
+            object.classification = object_list[i].getFilteredObjectAttributes().getClassification();
+            object.object_box_orientation = object_list[i].getFilteredObjectAttributes().getObjectBoxOrientationSigma()/100.0;
+            object.velocity_absolute.x = object_list[i].getFilteredObjectAttributes().getAbsoluteVelocitySigma().getX()/100.0;
+            object.velocity_absolute.y = object_list[i].getFilteredObjectAttributes().getAbsoluteVelocitySigma().getY()/100.0;
+            object.velocity_relative.x = object_list[i].getFilteredObjectAttributes().getRelativeVelocitySigma().getX()/100.0;
+            object.velocity_relative.y = object_list[i].getFilteredObjectAttributes().getRelativeVelocitySigma().getY()/100.0;
+            object.object_closest.x = object_list[i].getFilteredObjectAttributes().getPositionClosestObjectPoint().getX()/100.0;
+            object.object_closest.y = object_list[i].getFilteredObjectAttributes().getPositionClosestObjectPoint().getY()/100.0;
+            object.object_box_height = object_list[i].getFilteredObjectAttributes().getObjectBoxHeight()/100.0;
+            object.object_box_size.x = object_list[i].getFilteredObjectAttributes().getObjectBoxSizeSigma().getX()/100.0;
+            object.object_box_size.y = object_list[i].getFilteredObjectAttributes().getObjectBoxSizeSigma().getY()/100.0;
 
-            for(int j = 0; j < object_points[i].getFilteredObjectAttributes().getContourPoints().size();++j)
+            for(int j = 0; j < object_list[i].getFilteredObjectAttributes().getContourPoints().size();++j)
             {
-                contour_points.x = object_points[i].getFilteredObjectAttributes().getContourPoints().at(j).getXSigma()/100.0;
-                contour_points.y = object_points[i].getFilteredObjectAttributes().getContourPoints().at(j).getYSigma()/100.0;
+                contour_points.x = object_list[i].getFilteredObjectAttributes().getContourPoints()[j].getXSigma()/100.0;
+                contour_points.y = object_list[i].getFilteredObjectAttributes().getContourPoints()[j].getYSigma()/100.0;
                 object.contour.push_back(contour_points);
             }
             object_array.objects.push_back(object);
