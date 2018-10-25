@@ -1,0 +1,2 @@
+float32 current_yaw_rate
+float32 longitudinal_velocity

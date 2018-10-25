@@ -1,8 +1,11 @@
 int32 id
 int32 age
+int32 hidden_state_age
+int32 dynamic_flag
 int32 classification
 Point2D velocity_relative
 Point2D velocity_absolute
+Point2D[] reference_points
 Point2D object_closest
 Point2D object_box_size
 float32 object_box_height

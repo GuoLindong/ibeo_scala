@@ -8,6 +8,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include <ros/ros.h>
+#include <geometry_msgs/Point.h>
 #include <sensor_msgs/PointCloud2.h>
 
 #include <ibeosdk/scala.hpp>
@@ -22,6 +23,7 @@
 #include <ibeo_scala/Object.h>
 #include <ibeo_scala/ObjectArray.h>
 #include <ibeo_scala/Point2D.h>
+#include <ibeo_scala/VehicleState.h>
 
 #include <pcl-1.7/pcl/point_cloud.h>
 #include <pcl-1.7/pcl/point_types.h>
@@ -47,23 +49,24 @@ ibeosdk::TimeConversion tc;
 class AllScalaListener : public ibeosdk::DataListener<ibeosdk::FrameEndSeparator>,
                          public ibeosdk::DataListener<ibeosdk::Scan2208>,
                          public ibeosdk::DataListener<ibeosdk::ObjectListScala2271>,
-                         public ibeosdk::DataListener<ibeosdk::DeviceStatus6303>{
+                         public ibeosdk::DataListener<ibeosdk::VehicleStateBasicLux>{
 
 public:
     ros::NodeHandle nh;
     ros::Publisher pub_scala_points;
     ros::Publisher pub_scala_objects;
+    ros::Publisher pub_scala_vehicle_state;
 
-    ibeo_scala::Object object;
-    ibeo_scala::Point2D contour_points;
-    ibeo_scala::ObjectArray object_array;
+    //ibeo_scala::Object object;
+    //ibeo_scala::ObjectArray object_array;
 
     float min_distance;
 
     AllScalaListener()
     {
-        pub_scala_points = nh.advertise<sensor_msgs::PointCloud2>("scala_points", 5);
-        pub_scala_objects = nh.advertise<ibeo_scala::ObjectArray>("scala_objects", 5);
+        pub_scala_points = nh.advertise<sensor_msgs::PointCloud2>("scala_points", 1);
+        pub_scala_objects = nh.advertise<ibeo_scala::ObjectArray>("scala_objects", 1);
+        pub_scala_vehicle_state = nh.advertise<ibeo_scala::VehicleState>("scala_vehicle_state",1);
     }
 
     virtual ~AllScalaListener(){}
@@ -103,7 +106,7 @@ public:
                 flags = scala_point.getFlags();
                 if(!(flags & (ibeosdk::ScanPoint2208::SPFML_Ground | ibeosdk::ScanPoint2208::SPFML_Dirt | ibeosdk::ScanPoint2208::SPFML_Rain)))
                 {
-                    dis = scala_point.getRadialDistance()/100.0;   // 米
+                    dis = scala_point.getRadialDistance()/100.0;   // m
                     if (dis<min_distance)
                         continue;
                     angle = -90 + (scala_point.getHorizontalAngle()/32.0);  //
@@ -111,9 +114,14 @@ public:
                     int layer = scala_point.getLayerId();//0123
                     double phi = layer * 0.8 - 1.2;
                     point.intensity = scala_point.getEchoPulseWidth();
+                    //for B2.x
+//                    point.z = dis * (sin(DEG2RAD(phi)));
+//                    point.x = dis * (cos(DEG2RAD(phi))) * (cos(DEG2RAD(angle)));
+//                    point.y = dis * (cos(DEG2RAD(phi))) * (sin(DEG2RAD(angle)));
+                    //for B3.0
                     point.z = dis * (sin(DEG2RAD(phi)));
-                    point.x = dis * (cos(DEG2RAD(phi))) * (cos(DEG2RAD(angle)));
-                    point.y = dis * (cos(DEG2RAD(phi))) * (sin(DEG2RAD(angle)));
+                    point.x = dis * -(cos(DEG2RAD(phi))) * (sin(DEG2RAD(angle)));
+                    point.y = dis * (cos(DEG2RAD(phi))) * (cos(DEG2RAD(angle)));
                     scala_cloud->push_back(point);
                 }
             }
@@ -130,30 +138,40 @@ public:
     void onData(const ibeosdk::ObjectListScala2271* const objectList)
     {
         std::vector<ibeosdk::ObjectScala2271> object_list = objectList->getObjects();
-        object_array.objects.clear();
+        ibeo_scala::ObjectArray object_array;
         int object_list_size = object_list.size();
+//        ROS_INFO("object number: %i", object_list_size);
         for(int i =0; i<object_list_size; ++i)
         {
+            ibeo_scala::Object object;
             object.id = object_list[i].getObjectId();
             object.age = object_list[i].getFilteredObjectAttributes().getObjectAge();
             object.classification = object_list[i].getFilteredObjectAttributes().getClassification();
-            object.object_box_orientation = object_list[i].getFilteredObjectAttributes().getObjectBoxOrientationSigma()/100.0;
-            object.velocity_absolute.x = object_list[i].getFilteredObjectAttributes().getAbsoluteVelocitySigma().getX()/100.0;
-            object.velocity_absolute.y = object_list[i].getFilteredObjectAttributes().getAbsoluteVelocitySigma().getY()/100.0;
-            object.velocity_relative.x = object_list[i].getFilteredObjectAttributes().getRelativeVelocitySigma().getX()/100.0;
-            object.velocity_relative.y = object_list[i].getFilteredObjectAttributes().getRelativeVelocitySigma().getY()/100.0;
+            object.hidden_state_age = object_list[i].getFilteredObjectAttributes().getHiddenStatusAge();
+            object.dynamic_flag = object_list[i].getFilteredObjectAttributes().getDynamicFlag();
+            object.velocity_absolute.x = object_list[i].getFilteredObjectAttributes().getAbsoluteVelocity().getX()/100.0;
+            object.velocity_absolute.y = object_list[i].getFilteredObjectAttributes().getAbsoluteVelocity().getY()/100.0;
+//            object.velocity_relative.x = object_list[i].getFilteredObjectAttributes().getRelativeVelocity().getX()/100.0;
+//            object.velocity_relative.y = object_list[i].getFilteredObjectAttributes().getRelativeVelocity().getY()/100.0;
             object.object_closest.x = object_list[i].getFilteredObjectAttributes().getPositionClosestObjectPoint().getX()/100.0;
             object.object_closest.y = object_list[i].getFilteredObjectAttributes().getPositionClosestObjectPoint().getY()/100.0;
-            object.object_box_height = object_list[i].getFilteredObjectAttributes().getObjectBoxHeight()/100.0;
-            object.object_box_size.x = object_list[i].getFilteredObjectAttributes().getObjectBoxSizeSigma().getX()/100.0;
-            object.object_box_size.y = object_list[i].getFilteredObjectAttributes().getObjectBoxSizeSigma().getY()/100.0;
-
-            for(int j = 0; j < object_list[i].getFilteredObjectAttributes().getContourPoints().size();++j)
-            {
-                contour_points.x = object_list[i].getFilteredObjectAttributes().getContourPoints()[j].getXSigma()/100.0;
-                contour_points.y = object_list[i].getFilteredObjectAttributes().getContourPoints()[j].getYSigma()/100.0;
-                object.contour.push_back(contour_points);
+            for (int k = 0; k < 10; ++k) {
+                ibeo_scala::Point2D reference_point_coord;
+                object_list[i].getFilteredObjectAttributes().setReferencePointLocation(ibeosdk::RefPointBoxLocation(k));
+                reference_point_coord.x = object_list[i].getFilteredObjectAttributes().getReferencePointCoord().getX()/100.0;
+                reference_point_coord.y = object_list[i].getFilteredObjectAttributes().getReferencePointCoord().getY()/100.0;
+                object.reference_points.push_back(reference_point_coord);
             }
+            object.object_box_orientation = object_list[i].getFilteredObjectAttributes().getObjectBoxOrientation()/100.0;
+            object.object_box_height = object_list[i].getFilteredObjectAttributes().getObjectBoxHeight()/100.0;
+            object.object_box_size.x = object_list[i].getFilteredObjectAttributes().getObjectBoxSize().getX()/100.0;
+            object.object_box_size.y = object_list[i].getFilteredObjectAttributes().getObjectBoxSize().getY()/100.0;
+//            for(int j = 0; j < object_list[i].getFilteredObjectAttributes().getContourPoints().size();++j)
+//            {
+//                contour_points.x = object_list[i].getFilteredObjectAttributes().getContourPoints()[j].getX()/100.0;
+//                contour_points.y = object_list[i].getFilteredObjectAttributes().getContourPoints()[j].getY()/100.0;
+//                object.contour.push_back(contour_points);
+//            }
             object_array.objects.push_back(object);
         }
         object_array.header.frame_id = "scala";
@@ -161,11 +179,14 @@ public:
         pub_scala_objects.publish(object_array);
     }
 
-    void onData(const ibeosdk::DeviceStatus6303* const status)
+    void onData(const ibeosdk::VehicleStateBasicLux* const state)
     {
-        // ibeosdk::logInfo << std::setw(5) << status->getSerializedSize() << " Bytes "
-        //                                  << "DevStat 0x6306 received" << std::endl;
+        ibeo_scala::VehicleState vehicle_state;
+        vehicle_state.current_yaw_rate = state->getCurrentYawRate()/10000.0;
+        vehicle_state.longitudinal_velocity = state->getLongitudinalVelocity()/100.0;
+        pub_scala_vehicle_state.publish(vehicle_state);
     }
+
 };
 
 
@@ -211,7 +232,9 @@ int main(int argc, char **argv)
     const boost::asio::ip::address_v4 interface_ip; //gateway
     interface_ip.from_string(multicast_interface_ip);
 
-    boost::shared_ptr<ibeosdk::IbeoScala> scala;
+    boost::shared_ptr<ibeosdk::IbeoScala> scala(new ibeosdk::IbeoScala(device_ip,
+                                                                       portVal,
+                                                                       ibeosdk::IbeoTypeEthTcp()));
 
     switch (scala_type)
     {
@@ -256,6 +279,38 @@ int main(int argc, char **argv)
     ros::waitForShutdown();
     return 0;
 }
+
+
+
+/*enum ibeosdk::rawObjectClass::RawObjectClass
+
+0 RawObjectClass_Unclassified
+1 RawObjectClass_UnknownSmall
+2 RawObjectClass_UnknownBig
+3 RawObjectClass_Pedestrian
+4 RawObjectClass_Bike
+5 RawObjectClass_Car
+6 RawObjectClass_Truck
+7 RawObjectClass_Overdrivable
+8 RawObjectClass_Underdrivable
+9 RawObjectClass_Bicycle
+10 RawObjectClass_Motorbike
+11 RawObjectClass_Infrastructure  */
+
+
+/*enum ibeosdk::RefPointBoxLocation
+ *
+0 RPL_CenterOfGravity
+1 RPL_FrontLeft
+2 RPL_FrontRight
+3 RPL_RearRight
+4 RPL_RearLeft
+5 RPL_FrontCenter
+6 RPL_RightCenter
+7 RPL_RearCenter
+8 RPL_LeftCenter
+9 RPL_ObjectCenter
+10 RPL_Unknown */
 
 
 

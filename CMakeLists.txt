@@ -2,13 +2,20 @@ cmake_minimum_required(VERSION 2.8.3)
 project(ibeo_scala)
 
 find_package(catkin REQUIRED COMPONENTS
-  message_generation
-  roscpp
-  rospy
-  std_msgs
-  geometry_msgs
+  	message_generation
+  	roscpp
+  	rospy
+  	std_msgs
+  	geometry_msgs
+	sensor_msgs
+	nav_msgs
+		tf
+		pcl_ros
+		mrpt_bridge
+		mrpt_msgs
 )
 find_package(PCL 1.7 REQUIRED)
+
 
 ## Generate messages in the 'msg' folder
 add_message_files(
@@ -16,6 +23,7 @@ add_message_files(
   Point2D.msg
   ObjectArray.msg
   Object.msg
+	VehicleState.msg
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -34,6 +42,7 @@ catkin_package(
 include_directories(
 		${PCL_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+		${mrpt_INCLUDE_DIRS}
   /home/guolindong/CyberC3/IbeoSDK5.2.2/src
 )
 
@@ -41,13 +50,22 @@ include_directories(
 add_library(ibeosdk_d SHARED IMPORTED)
 set_target_properties(ibeosdk_d PROPERTIES IMPORTED_LOCATION /home/guolindong/CyberC3/IbeoSDK5.2.2/libs/libibeosdk_d.so)
 
-add_executable(scala_node
-        src/scala_pointcloud.cpp
-)
 
+add_executable(scala_node
+        src/scala_pointcloud.cpp src/scala_rviz_display.h)
+add_dependencies(scala_node ibeo_scala_generate_messages_cpp)
 target_link_libraries(scala_node
         ibeosdk_d
         ${catkin_LIBRARIES}
         ${PCL_LIBRARIES}
  )
+
+add_executable(scala_rviz_display
+		src/scala_rviz_display.cpp)
+add_dependencies(scala_rviz_display ibeo_scala_generate_messages_cpp)
+target_link_libraries(scala_rviz_display
+		ibeosdk_d
+		${catkin_LIBRARIES}
+		${PCL_LIBRARIES}
+		)
 
